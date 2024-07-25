@@ -1,0 +1,146 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <TCS3200.h>
+
+// Pins for LEDs
+const int greenLED = 7;
+const int redLED = 8;
+
+// Motor driver pins
+const int motorPin1 = 9;
+const int motorPin2 = 10;
+
+// Push button pin
+const int buttonPin = 2;
+
+// Buzzer pin
+const int buzzerPin = 12;
+
+// Color sensor pins
+const int S0 = 4;
+const int S1 = 5;
+const int S2 = 6;
+const int S3 = 3;
+const int sensorOut = 11;
+
+// Initialize LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Initialize color sensor
+TCS3200 colorSensor(S2, S3, sensorOut);
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+
+  // Initialize LCD
+  lcd.begin();
+  lcd.backlight();
+
+  // Initialize LEDs
+  pinMode(greenLED, OUTPUT);
+  pinMode(redLED, OUTPUT);
+
+  // Initialize motor driver
+  pinMode(motorPin1, OUTPUT);
+  pinMode(motorPin2, OUTPUT);
+
+  // Initialize push button
+  pinMode(buttonPin, INPUT_PULLUP);
+
+  // Initialize buzzer
+  pinMode(buzzerPin, OUTPUT);
+
+  // Initialize color sensor
+  colorSensor.setFilter(TCS3200::RGB);
+  colorSensor.setFrequency(TCS3200::PRESCALE_20);
+}
+
+void loop() {
+  // Wait for button press
+  if (digitalRead(buttonPin) == LOW) {
+    // Start conveyor belt
+    startConveyorBelt();
+
+    // Read color sensor values
+    int red = colorSensor.readRed();
+    int green = colorSensor.readGreen();
+    int blue = colorSensor.readBlue();
+
+    // Display color values on LCD
+    lcd.setCursor(0, 0);
+    lcd.print("R:");
+    lcd.print(red);
+    lcd.setCursor(8, 0);
+    lcd.print("G:");
+    lcd.print(green);
+    lcd.setCursor(0, 1);
+    lcd.print("B:");
+    lcd.print(blue);
+
+    // Determine product condition
+    if (isProductBroken(red, green, blue)) {
+      // Product is broken
+      digitalWrite(redLED, HIGH);
+      digitalWrite(greenLED, LOW);
+      
+      // Stop conveyor belt for inspection
+      stopConveyorBelt();
+
+      // Display "Damaged" on LCD
+      lcd.setCursor(8, 1);
+      lcd.print("Damaged");
+
+      // Buzzer alert
+      tone(buzzerPin, 1000); // 1 kHz
+      delay(500); // Buzz for 500 ms
+      noTone(buzzerPin);
+
+      // Wait for a few seconds before resuming
+      delay(3000);
+      } 
+
+      else {
+      // Product is good
+      digitalWrite(redLED, LOW);
+      digitalWrite(greenLED, HIGH);
+      
+      // Display "Good" on LCD
+      lcd.setCursor(8, 1);
+      lcd.print("Good");
+    }
+
+    // Continue conveyor belt
+    startConveyorBelt();
+
+    // Wait for next product
+    delay(5000); 
+  }
+}
+
+void startConveyorBelt() {
+  digitalWrite(motorPin1, HIGH);
+  digitalWrite(motorPin2, LOW);
+}
+
+void stopConveyorBelt() {
+  digitalWrite(motorPin1, LOW);
+  digitalWrite(motorPin2, LOW);
+}
+
+bool isProductBroken(int red, int green, int blue) {
+  // Define threshold values for broken product
+  int redThreshold = 100;
+  int greenThreshold = 100;
+  int blueThreshold = 100;
+
+  // Check if any color value exceeds the threshold
+  if (red > redThreshold || green > greenThreshold || blue > blueThreshold) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+  }
+}
